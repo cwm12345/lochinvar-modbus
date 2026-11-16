@@ -67,10 +67,8 @@ controls. That's a deliberate decision for whoever wires it up, not a default.
 
 ## Installation
 
-Not on PyPI yet. Install from GitHub:
-
 ```
-pip install git+https://github.com/cwm12345/lochinvar-modbus
+pip install lochinvar-modbus
 ```
 
 For Home Assistant, you don't need this directly: use the
