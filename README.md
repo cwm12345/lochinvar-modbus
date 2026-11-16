@@ -65,6 +65,18 @@ control is made active in the boiler's installer menu, and the boiler then
 expects the BMS to refresh them every few minutes or it falls back to its own
 controls. That's a deliberate decision for whoever wires it up, not a default.
 
+## Installation
+
+Not on PyPI yet. Install from GitHub:
+
+```
+pip install git+https://github.com/cwm12345/lochinvar-modbus
+```
+
+For Home Assistant, you don't need this directly: use the
+[ha-lochinvar](https://github.com/cwm12345/ha-lochinvar) integration, which
+includes a copy.
+
 ## Usage
 
 ```python
