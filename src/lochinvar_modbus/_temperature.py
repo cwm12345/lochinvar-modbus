@@ -13,6 +13,21 @@ _OPEN_SENSOR = {TemperatureUnit.CELSIUS: 499.0, TemperatureUnit.FAHRENHEIT: 930.
 _NO_SETPOINT = {TemperatureUnit.CELSIUS: 0.0, TemperatureUnit.FAHRENHEIT: 32.0}
 
 
+def _fahrenheit_word(celsius_tenths: int) -> int:
+    """The word a Fahrenheit board sends for a reading in tenths of a degree C.
+
+    The board converts with 16-bit unsigned arithmetic, so below 0 °C the
+    multiply wraps: -0.1 °C arrives as 13425, -1.0 °C as 13409, -40 °C as 12707.
+    Seen on a Knight WHB399N's outdoor sensor, 2026-11-19.
+    """
+    return ((celsius_tenths & 0xFFFF) * 9 & 0xFFFF) // 5 + 320
+
+
+# Wrapped sub-zero words back to tenths of a degree C, down to the sensors'
+# -40 °C floor. They sit well above the 932 °F open-sensor value.
+_BELOW_ZERO_F = {_fahrenheit_word(-tenths): -tenths for tenths in range(1, 401)}
+
+
 def measured(raw: int | None, unit: TemperatureUnit) -> float | None:
     """Decode a measured temperature: tenths of a degree in either unit.
 
@@ -20,6 +35,8 @@ def measured(raw: int | None, unit: TemperatureUnit) -> float | None:
     """
     if raw is None:
         return None
+    if unit is TemperatureUnit.FAHRENHEIT and raw in _BELOW_ZERO_F:
+        return round(_BELOW_ZERO_F[raw] * 0.18 + 32, 1)
     value = raw / 10
     return None if value >= _OPEN_SENSOR[unit] else value
 

@@ -115,6 +115,30 @@ async def test_celsius_boiler_follows_the_manual(unit: MockModbusUnit) -> None:
     assert boiler.bms.system_supply_temperature is None
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # Captured live from a Knight WHB399N outdoor sensor, 2026-11-19.
+        (320, 32.0),  # 0.0 C, no wrap
+        (321, 32.1),
+        (13425, 31.8),  # -0.1 C
+        (13418, 31.1),  # -0.5 C
+        (13409, 30.2),  # -1.0 C
+        (13402, 29.5),  # -1.4 C
+        # Derived from the same arithmetic, down to the sensor floor.
+        (13247, 14.0),  # -10.0 C
+        (12707, -40.0),  # -40.0 C
+        (9321, None),  # open circuit is still open circuit
+    ],
+)
+async def test_fahrenheit_below_freezing_unwraps(
+    unit: MockModbusUnit, boiler: LochinvarBoiler, raw: int, expected: float | None
+) -> None:
+    unit.holding[5] = raw
+    await boiler.async_update()
+    assert boiler.bms.outdoor_temperature == expected
+
+
 async def test_celsius_zero_setpoint_means_none(unit: MockModbusUnit) -> None:
     unit.input[7] = 0
     boiler = LochinvarBoiler(unit, TemperatureUnit.CELSIUS)
