@@ -244,3 +244,15 @@ async def test_celsius_feed_is_signed_tenths(unit: MockModbusUnit) -> None:
     assert unit.holding[5] == 0xFF9C
     await boiler.async_update()
     assert boiler.bms.outdoor_temperature == -10.0
+
+
+async def test_feed_writes_are_function_16(
+    unit: MockModbusUnit, boiler: LochinvarBoiler
+) -> None:
+    # The board echoes a stored temperature converted (410 -> 409), which a
+    # function 6 reply may not do, so every feed write is function 16.
+    codes: list[int] = []
+    unit.on_write(lambda event: codes.append(event.function_code))
+    await boiler.bms.async_feed_outdoor_temperature(41.0)
+    await boiler.bms.async_release_outdoor_temperature()
+    assert codes == [0x10, 0x10, 0x10]

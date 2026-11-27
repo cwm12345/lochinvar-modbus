@@ -113,11 +113,14 @@ class Bms(Component):
         """
         raw = _temperature.encode_measured(degrees, self.temperature_unit)
         unit = self.modbus_unit
-        await unit.write_register(5, raw)
+        # Function 16, not 6. The board stores a temperature in Celsius and
+        # echoes it back converted, often 1 lower (410 comes back as 409), and
+        # a function 6 reply has to echo the written value exactly.
+        await unit.write_registers(5, [raw])
         bits = (self.configuration or 0) | BmsConfiguration.OUTDOOR_TEMPERATURE
-        await unit.write_register(0, int(bits))
+        await unit.write_registers(0, [int(bits)])
 
     async def async_release_outdoor_temperature(self) -> None:
         """Hand the outdoor temperature back to the boiler's own sensor."""
         bits = (self.configuration or 0) & ~BmsConfiguration.OUTDOOR_TEMPERATURE
-        await self.modbus_unit.write_register(0, int(bits))
+        await self.modbus_unit.write_registers(0, [int(bits)])
