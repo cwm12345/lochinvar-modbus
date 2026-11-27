@@ -66,7 +66,7 @@ sensor reads wrong (in sun, say):
 ```python
 await boiler.bms.async_feed_outdoor_temperature(41.5)  # every few seconds
 ...
-await boiler.bms.async_release_outdoor_temperature()   # back to its sensor
+await boiler.bms.async_release_outdoor_temperature()  # back to its sensor
 ```
 
 This writes 40006 and sets bit 5 of 40001 (`BmsConfiguration.OUTDOOR_TEMPERATURE`).
