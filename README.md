@@ -87,9 +87,22 @@ under 0 C (31.9 F and colder) is read as hot: the boiler goes into
 warm-weather shutdown within seconds. It shows the same signature as a fed
 75 F (no outlet setpoint, status heating pump delay, thermostat still
 calling), and the same 10 F latch, so a fed 65 F right after keeps heat off.
-The value itself arrives intact (it reads back as the board's own form for
--0.1 C), so no encoding gets around it. The boiler's own sensor is fine below
-freezing; only the fed path misreads it. So Fahrenheit writes below 32 F
+Why: a Fahrenheit board converts a written word to tenths of a degree C with
+the same 16-bit unsigned arithmetic that wraps its sub-zero readings,
+
+```
+stored = (((word - 320) & 0xFFFF) * 5 & 0xFFFF) // 9
+```
+
+Below 32 F, `word - 320` underflows and the stored value lands between about
+713 and 728 C, which the boiler treats as warm outside. The largest value this
+can produce is 7281 (728.1 C), nowhere near a negative C as a signed word, so
+no written word can mean below freezing. Every readback in the live test
+matches this, re-encoded with the read formula
+`((stored * 9) & 0xFFFF) // 5 + 320` (e.g. 31.9 F reads back as 13425,
+30.0 F as 13406). Fed values also truncate to 0.1 C. The boiler's own sensor
+is fine below freezing; only the written path breaks. A boiler displaying in
+Celsius takes signed tenths of a degree C directly; that case is unchecked. So Fahrenheit writes below 32 F
 raise `ValueError`. Clamp to 32 F instead; a reset curve is normally at its
 cap long before then. The other BMS writes (enable, setpoints, rate) aren't
 implemented.
