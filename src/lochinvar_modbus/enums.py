@@ -12,6 +12,7 @@ from enum import IntEnum, IntFlag, StrEnum
 
 __all__ = [
     "BlockingCode",
+    "BmsConfiguration",
     "DiscreteInputs",
     "LockoutCode",
     "StatusCode",
@@ -155,3 +156,25 @@ class DiscreteInputs(IntFlag):
     GAS_VALVE = 1 << 37
     SYSTEM_PUMP = 1 << 38
     DHW_RECIRCULATION_PUMP = 1 << 43
+
+
+class BmsConfiguration(IntFlag):
+    """Holding register 40001: which values the boiler takes from the BMS.
+
+    A set bit tells the boiler to ignore its own input for that value and use
+    what the BMS writes into the matching holding register instead. The boiler
+    only honors this when ModBus/BACnet is ACTIVE in its installer menu, and
+    goes back to its own inputs if the writes stop for longer than its
+    ModBus timeout.
+    """
+
+    BOILER_ENABLE = 1 << 0
+    TANK_THERMOSTAT = 1 << 1
+    RATE_COMMAND = 1 << 2
+    """The 0-10 V input / rate or setpoint command (40003)."""
+    TANK_SETPOINT = 1 << 3
+    SYSTEM_SUPPLY_TEMPERATURE = 1 << 4
+    OUTDOOR_TEMPERATURE = 1 << 5
+    """Outdoor temperature from 40006 instead of the outdoor sensor."""
+    TANK_TEMPERATURE = 1 << 6
+    SYSTEM_RETURN_TEMPERATURE = 1 << 7

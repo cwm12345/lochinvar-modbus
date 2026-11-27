@@ -58,12 +58,32 @@ Decoding conventions:
   (lockout); the manual warns the lockout register changes constantly
   otherwise.
 
-## Read-only
+## Writes: the outdoor temperature only
 
-The library doesn't write. The BMS registers only take effect once BMS
-control is made active in the boiler's installer menu, and the boiler then
-expects the BMS to refresh them every few minutes or it falls back to its own
-controls. That's a deliberate decision for whoever wires it up, not a default.
+The one write is the outdoor temperature, for a boiler whose own outdoor
+sensor reads wrong (in sun, say):
+
+```python
+await boiler.bms.async_feed_outdoor_temperature(41.5)  # every few seconds
+...
+await boiler.bms.async_release_outdoor_temperature()  # back to its sensor
+```
+
+This writes 40006 and sets bit 5 of 40001 (`BmsConfiguration.OUTDOOR_TEMPERATURE`).
+It only takes effect when ModBus/BACnet is ACTIVE in the boiler's installer
+menu (Control Modes). The boiler drops the fed value and goes back to its own
+sensor unless the write is repeated within its ModBus timeout (5-120 s,
+default 10), so a stopped caller fails safe. While a value is fed,
+`bms.outdoor_temperature` reads back that value; the board has no other
+register for the sensor. `bms.outdoor_temperature_fed` says which you're
+seeing.
+
+Checked live on a Knight Wall Hung in Fahrenheit: feeding 60.0 F moved its
+reset target from 109 F to 94 F, as its curve predicts. Fahrenheit writes below
+32 F raise `ValueError`, because the encoding for those hasn't been checked
+(sub-zero Celsius readings arrive wrapped). Clamp to 32 F instead; a reset
+curve is normally at its cap long before then. The other BMS writes (enable,
+setpoints, rate) aren't implemented.
 
 ## Installation
 

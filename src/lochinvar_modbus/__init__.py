@@ -5,6 +5,7 @@ from .bms import Bms
 from .device import COMPONENTS, LochinvarBoiler
 from .enums import (
     BlockingCode,
+    BmsConfiguration,
     DiscreteInputs,
     LockoutCode,
     StatusCode,
@@ -16,6 +17,7 @@ __all__ = [
     "COMPONENTS",
     "BlockingCode",
     "Bms",
+    "BmsConfiguration",
     "DiscreteInputs",
     "LochinvarBoiler",
     "LockoutCode",
