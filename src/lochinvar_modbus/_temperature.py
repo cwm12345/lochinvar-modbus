@@ -62,12 +62,14 @@ _WRITABLE = {
 def encode_measured(degrees: float, unit: TemperatureUnit) -> int:
     """Encode a temperature to write into a sensor register: tenths of a degree.
 
-    Fahrenheit is limited to 32 F and up. Readings below 0 C arrive in a
-    wrapped encoding (see ``_fahrenheit_word``), and nobody has checked whether
-    the board expects writes in the same form, so this refuses rather than
-    guess. A reset curve's target is usually at its cap well above freezing,
+    Fahrenheit is limited to 32 F and up. Checked live on a Knight Wall Hung:
+    a fed outdoor value below 0 C (31.9, 30, 20 and 5 F, plain or in the
+    wrapped form its own readings use) is stored, but the boiler then drops
+    its space-heat demand within seconds, though its thermostat still calls.
+    32.0 F is fine. A reset curve's target is at its cap well above freezing,
     so a caller can clamp to 32 F without changing what the boiler does.
-    Celsius follows the manual: signed tenths.
+    Celsius follows the manual (signed tenths) and is unchecked; the same
+    sub-zero behavior is likely.
 
     Raises ``ValueError`` outside the writable range.
     """

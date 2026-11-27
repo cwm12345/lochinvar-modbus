@@ -104,9 +104,11 @@ class Bms(Component):
         """Make the boiler use ``degrees`` as the outdoor temperature.
 
         Writes 40006, then sets the outdoor bit in 40001, keeping the other
-        bits as last read. The boiler drops the fed value and goes back to its
-        own sensor unless this is repeated within its ModBus timeout
-        (installer menu, 5-120 s), so call it every few seconds.
+        bits as last read. Repeat it at least every 4 minutes, as the manual
+        asks of a BMS refreshing its commands. Checked live: with no refresh,
+        a Knight Wall Hung kept a fed value for 5 minutes 10 seconds, then
+        went back to its own sensor. Its 10 s ModBus timeout (installer menu)
+        did not apply to the outdoor value.
 
         Raises ``ValueError`` for a value the board can't take (see
         ``_temperature.encode_measured``).
