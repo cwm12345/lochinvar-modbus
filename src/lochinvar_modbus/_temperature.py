@@ -50,3 +50,28 @@ def setpoint(raw: int | None, unit: TemperatureUnit) -> float | None:
         return None
     value = float(raw) if unit is TemperatureUnit.FAHRENHEIT else raw * 0.5
     return None if value <= _NO_SETPOINT[unit] else value
+
+
+# What the board takes for a written sensor value (manual: -40 to 60 C).
+_WRITABLE = {
+    TemperatureUnit.CELSIUS: (-40.0, 60.0),
+    TemperatureUnit.FAHRENHEIT: (32.0, 140.0),
+}
+
+
+def encode_measured(degrees: float, unit: TemperatureUnit) -> int:
+    """Encode a temperature to write into a sensor register: tenths of a degree.
+
+    Fahrenheit is limited to 32 F and up. Readings below 0 C arrive in a
+    wrapped encoding (see ``_fahrenheit_word``), and nobody has checked whether
+    the board expects writes in the same form, so this refuses rather than
+    guess. A reset curve's target is usually at its cap well above freezing,
+    so a caller can clamp to 32 F without changing what the boiler does.
+    Celsius follows the manual: signed tenths.
+
+    Raises ``ValueError`` outside the writable range.
+    """
+    low, high = _WRITABLE[unit]
+    if not low <= degrees <= high:
+        raise ValueError(f"{degrees} {unit.value} is outside {low} to {high}")
+    return round(degrees * 10) & 0xFFFF

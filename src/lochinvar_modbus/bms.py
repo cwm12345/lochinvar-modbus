@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from modbus_connection.model import Component, integer
 
 from . import _temperature
-from .enums import TemperatureUnit
+from .enums import BmsConfiguration, TemperatureUnit
 
 if TYPE_CHECKING:
     from modbus_connection import ModbusUnit
@@ -17,15 +17,19 @@ __all__ = ["Bms"]
 
 
 class Bms(Component):
-    """Holding registers 40001-40008, read in one block. Read-only here.
+    """Holding registers 40001-40008, read in one block.
 
     A BMS controls the boiler by setting configuration bits in 40001 and then
     writing commands, setpoints and sensor values into 40002-40008, which the
     boiler only honors once BMS control is made active in its installer menu
-    and the writes are refreshed every few minutes. When nothing is
-    controlling it, the boiler reports its own values here: its tank setpoint
-    and its tank, outdoor, system supply and DHW recirculation sensors. 40002
-    then mirrors its hardwired thermostat demand.
+    and the writes are refreshed in time. When nothing is controlling it, the
+    boiler reports its own values here: its tank setpoint and its tank,
+    outdoor, system supply and DHW recirculation sensors. 40002 then mirrors
+    its hardwired thermostat demand.
+
+    The one write supported so far is the outdoor temperature (see
+    ``async_feed_outdoor_temperature``). Checked live on a Knight Wall Hung:
+    feeding 60.0 F moved its reset target from 109 F to 94 F.
     """
 
     configuration = integer(0, signed=False)
@@ -84,3 +88,36 @@ class Bms(Component):
         return _temperature.measured(
             self.dhw_recirculation_temperature_raw, self.temperature_unit
         )
+
+    @property
+    def outdoor_temperature_fed(self) -> bool | None:
+        """Whether the boiler is using a BMS-fed outdoor temperature.
+
+        While it is, ``outdoor_temperature`` reads back the fed value, not the
+        sensor: the board has no other register for the sensor.
+        """
+        if self.configuration is None:
+            return None
+        return bool(self.configuration & BmsConfiguration.OUTDOOR_TEMPERATURE)
+
+    async def async_feed_outdoor_temperature(self, degrees: float) -> None:
+        """Make the boiler use ``degrees`` as the outdoor temperature.
+
+        Writes 40006, then sets the outdoor bit in 40001, keeping the other
+        bits as last read. The boiler drops the fed value and goes back to its
+        own sensor unless this is repeated within its ModBus timeout
+        (installer menu, 5-120 s), so call it every few seconds.
+
+        Raises ``ValueError`` for a value the board can't take (see
+        ``_temperature.encode_measured``).
+        """
+        raw = _temperature.encode_measured(degrees, self.temperature_unit)
+        unit = self.modbus_unit
+        await unit.write_register(5, raw)
+        bits = (self.configuration or 0) | BmsConfiguration.OUTDOOR_TEMPERATURE
+        await unit.write_register(0, int(bits))
+
+    async def async_release_outdoor_temperature(self) -> None:
+        """Hand the outdoor temperature back to the boiler's own sensor."""
+        bits = (self.configuration or 0) & ~BmsConfiguration.OUTDOOR_TEMPERATURE
+        await self.modbus_unit.write_register(0, int(bits))

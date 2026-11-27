@@ -10,6 +10,7 @@ from modbus_connection.mock import MockModbusUnit
 from lochinvar_modbus import (
     COMPONENTS,
     BlockingCode,
+    BmsConfiguration,
     DiscreteInputs,
     LochinvarBoiler,
     LockoutCode,
@@ -193,3 +194,53 @@ async def test_raw_dump_covers_both_tables(boiler: LochinvarBoiler) -> None:
     raw = await boiler.async_read_raw()
     assert raw["input"][13] == 33
     assert raw["holding"][3] == 124
+
+
+async def test_feeding_the_outdoor_temperature(
+    unit: MockModbusUnit, boiler: LochinvarBoiler
+) -> None:
+    await boiler.async_update()
+    assert boiler.bms.outdoor_temperature_fed is False
+
+    await boiler.bms.async_feed_outdoor_temperature(60.0)
+    assert unit.holding[5] == 600
+    assert unit.holding[0] == BmsConfiguration.OUTDOOR_TEMPERATURE
+    await boiler.async_update()
+    assert boiler.bms.outdoor_temperature_fed is True
+    assert boiler.bms.outdoor_temperature == 60.0
+
+    await boiler.bms.async_release_outdoor_temperature()
+    assert unit.holding[0] == 0
+
+
+async def test_feeding_keeps_the_other_configuration_bits(
+    unit: MockModbusUnit, boiler: LochinvarBoiler
+) -> None:
+    unit.holding[0] = BmsConfiguration.BOILER_ENABLE
+    await boiler.async_update()
+    await boiler.bms.async_feed_outdoor_temperature(45.04)
+    assert unit.holding[5] == 450
+    assert unit.holding[0] == (
+        BmsConfiguration.BOILER_ENABLE | BmsConfiguration.OUTDOOR_TEMPERATURE
+    )
+    await boiler.async_update()
+    await boiler.bms.async_release_outdoor_temperature()
+    assert unit.holding[0] == BmsConfiguration.BOILER_ENABLE
+
+
+@pytest.mark.parametrize("degrees", [31.9, -10.0, 140.1])
+async def test_fahrenheit_feed_refuses_unchecked_values(
+    unit: MockModbusUnit, boiler: LochinvarBoiler, degrees: float
+) -> None:
+    with pytest.raises(ValueError):
+        await boiler.bms.async_feed_outdoor_temperature(degrees)
+    assert unit.holding[0] == 0
+    assert unit.holding[5] == 629
+
+
+async def test_celsius_feed_is_signed_tenths(unit: MockModbusUnit) -> None:
+    boiler = LochinvarBoiler(unit, TemperatureUnit.CELSIUS)
+    await boiler.bms.async_feed_outdoor_temperature(-10.0)
+    assert unit.holding[5] == 0xFF9C
+    await boiler.async_update()
+    assert boiler.bms.outdoor_temperature == -10.0
