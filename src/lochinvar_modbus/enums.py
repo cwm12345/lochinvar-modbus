@@ -164,8 +164,10 @@ class BmsConfiguration(IntFlag):
     A set bit tells the boiler to ignore its own input for that value and use
     what the BMS writes into the matching holding register instead. The boiler
     only honors this when ModBus/BACnet is ACTIVE in its installer menu, and
-    goes back to its own inputs if the writes stop for longer than its
-    ModBus timeout.
+    goes back to its own inputs if the writes stop: within its ModBus timeout
+    for the system supply and tank temperatures and the 0-10 V input, and
+    after about 4 minutes for the rest (5 min 10 s for the outdoor
+    temperature, measured).
     """
 
     BOILER_ENABLE = 1 << 0

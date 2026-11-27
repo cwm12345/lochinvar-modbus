@@ -64,26 +64,30 @@ The one write is the outdoor temperature, for a boiler whose own outdoor
 sensor reads wrong (in sun, say):
 
 ```python
-await boiler.bms.async_feed_outdoor_temperature(41.5)  # every few seconds
+await boiler.bms.async_feed_outdoor_temperature(41.5)  # at least every 4 min
 ...
 await boiler.bms.async_release_outdoor_temperature()  # back to its sensor
 ```
 
 This writes 40006 and sets bit 5 of 40001 (`BmsConfiguration.OUTDOOR_TEMPERATURE`).
 It only takes effect when ModBus/BACnet is ACTIVE in the boiler's installer
-menu (Control Modes). The boiler drops the fed value and goes back to its own
-sensor unless the write is repeated within its ModBus timeout (5-120 s,
-default 10), so a stopped caller fails safe. While a value is fed,
+menu (Control Modes). Repeat the write at least every 4 minutes. With no
+refresh, the boiler keeps the last fed value for about 5 minutes (measured:
+5 min 10 s), then goes back to its own sensor. Its 10 s ModBus timeout
+doesn't apply to the outdoor value. So a stopped caller fails safe, but
+slowly. While a value is fed,
 `bms.outdoor_temperature` reads back that value; the board has no other
 register for the sensor. `bms.outdoor_temperature_fed` says which you're
 seeing.
 
 Checked live on a Knight Wall Hung in Fahrenheit: feeding 60.0 F moved its
-reset target from 109 F to 94 F, as its curve predicts. Fahrenheit writes below
-32 F raise `ValueError`, because the encoding for those hasn't been checked
-(sub-zero Celsius readings arrive wrapped). Clamp to 32 F instead; a reset
-curve is normally at its cap long before then. The other BMS writes (enable,
-setpoints, rate) aren't implemented.
+reset target from 109 F to 94 F, as its curve predicts (also 57 F → 102,
+64 F → 84). **Never feed below freezing.** On the same boiler, a fed value
+under 0 C (31.9 F and colder) makes it drop its space-heat demand within
+seconds, though its thermostat still calls. So Fahrenheit writes below 32 F
+raise `ValueError`. Clamp to 32 F instead; a reset curve is normally at its cap
+long before then. The other BMS writes (enable, setpoints, rate) aren't
+implemented.
 
 ## Installation
 
