@@ -83,10 +83,15 @@ seeing.
 Checked live on a Knight Wall Hung in Fahrenheit: feeding 60.0 F moved its
 reset target from 109 F to 94 F, as its curve predicts (also 57 F → 102,
 64 F → 84). **Never feed below freezing.** On the same boiler, a fed value
-under 0 C (31.9 F and colder) makes it drop its space-heat demand within
-seconds, though its thermostat still calls. So Fahrenheit writes below 32 F
-raise `ValueError`. Clamp to 32 F instead; a reset curve is normally at its cap
-long before then. The other BMS writes (enable, setpoints, rate) aren't
+under 0 C (31.9 F and colder) is read as hot: the boiler goes into
+warm-weather shutdown within seconds. It shows the same signature as a fed
+75 F (no outlet setpoint, status heating pump delay, thermostat still
+calling), and the same 10 F latch, so a fed 65 F right after keeps heat off.
+The value itself arrives intact (it reads back as the board's own form for
+-0.1 C), so no encoding gets around it. The boiler's own sensor is fine below
+freezing; only the fed path misreads it. So Fahrenheit writes below 32 F
+raise `ValueError`. Clamp to 32 F instead; a reset curve is normally at its
+cap long before then. The other BMS writes (enable, setpoints, rate) aren't
 implemented.
 
 ## Installation
