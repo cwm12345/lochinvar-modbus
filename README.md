@@ -101,11 +101,30 @@ no written word can mean below freezing. Every readback in the live test
 matches this, re-encoded with the read formula
 `((stored * 9) & 0xFFFF) // 5 + 320` (e.g. 31.9 F reads back as 13425,
 30.0 F as 13406). Fed values also truncate to 0.1 C. The boiler's own sensor
-is fine below freezing; only the written path breaks. A boiler displaying in
-Celsius takes signed tenths of a degree C directly; that case is unchecked. So Fahrenheit writes below 32 F
-raise `ValueError`. Clamp to 32 F instead; a reset curve is normally at its
-cap long before then. The other BMS writes (enable, setpoints, rate) aren't
-implemented.
+is fine below freezing; only the written path breaks. So Fahrenheit writes
+below 32 F raise `ValueError`. Clamp to 32 F instead; a reset curve is
+normally at its cap long before then. The other BMS writes (enable,
+setpoints, rate) aren't implemented.
+
+### Fahrenheit only, for now
+
+Everything in this section was worked out on a boiler whose display is in
+**Fahrenheit**:
+
+- the units (tenths of a degree F);
+- the conversion formula above;
+- the 32 F limit;
+- the ~5 minute hold.
+
+A Fahrenheit board converts every written word from F to C, and that
+conversion is what breaks below freezing.
+
+A boiler set to **Celsius** should take signed tenths of a degree C as the
+manual documents, with no conversion. So it may accept below-freezing values,
+and its limits would differ. `encode_measured` has a Celsius branch (-40 to
+60 C, signed tenths), but it has **not** been tested against a Celsius boiler,
+and the Home Assistant integration doesn't handle that case at this time.
+Treat Celsius writes as unsupported until someone checks one.
 
 ## Installation
 
